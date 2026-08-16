@@ -1,0 +1,1 @@
+C:\PyCharm\YOLOproject\.venv\Scripts\python.exe C:\PyCharm\YOLOproject\YOLOtrain.py treinar
