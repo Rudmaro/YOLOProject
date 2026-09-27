@@ -1,4 +1,4 @@
-# Grupo de funcoes auxiliares para preparar imagens e anotacoes do dataset personalizado
+# Grupo de funções auxiliares para preparar imagens e anotações do dataset personalizado
 # Desenhar uma caixa delimitadora em torno de cada objeto
 # imagem_001.jpg -→ imagem_001.txt
 #    <class> <x_center> <y_center> <width> <height>
@@ -11,6 +11,7 @@ import os
 import sys
 import time
 import pandas as pd
+# from Demos.print_desktop import hwnd
 from PIL import Image
 import json
 import base64
@@ -25,14 +26,13 @@ import win32gui
 # from torchvision.utils import save_image
 
 # Adiciona o diretório do projeto biblioteca ao sys.path
-projeto = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'FillForm'))
-sys.path.append(projeto)
-import DetectLib
-from DetectLib import InputDataBox, ImageBinary, ShowMe
+# projeto = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'FillForm'))
+# sys.path.append(projeto)
+# import DetectLib
+# from DetectLib import InputDataBox, ImageBinary, ShowMe
 
 
-
-def find_app(name: str):
+def find_app(name: str, only_once=True):
     names = []
     def winEnumHandler(hwnd, ctx):
         if win32gui.IsWindowVisible(hwnd):
@@ -41,7 +41,10 @@ def find_app(name: str):
                 # print(hex(hwnd), texto)
                 names.append(texto)
     win32gui.EnumWindows(winEnumHandler, None)
-    return names[0] if names else ''
+    if names:
+        return names[0] if only_once else names
+    else:
+        return  ''
 
 
 def get_active_window_name():
@@ -73,27 +76,52 @@ def active_app_win32gui(app_tit: str):
         return None
     return handle
 
-def active_window_by_title(window_name):
+def active_window_by_title(window_name, close_win=False):
     try:
         # Encontra o identificador da janela com base no nome
-        window_name = find_app(name=window_name)
-        hwnd = win32gui.FindWindow(None, window_name)
-        if not hwnd or not window_name:
+        find_name = window_name.replace('*', '')
+        windows_names = find_app(name=find_name, only_once=False)
+        if not windows_names:
+            return None
+        ret_name = ''
+        for win_name in windows_names:
+            if win_name.startswith(find_name) and window_name.startswith(find_name):
+                ret_name = win_name
+                break
+            if win_name.endswith(find_name) and window_name.endswith(find_name):
+                ret_name = win_name
+                break
+        if not ret_name:
+            if window_name.startswith('*') and window_name.endswith('*'):
+                ret_name = windows_names[0]
+            else:
+                return None
+        handle = win32gui.FindWindow(None, ret_name)
+        if not handle:
             print(f"Janela '{window_name}' não encontrada.")
             return None
-        # Se a janela estiver minimizada, restaura
-        if win32gui.IsIconic(hwnd):
-            win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
-            win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
+        if close_win:
+            # Envia uma mensagem para a janela fechar de forma limpa
+            print(f"Fechando janela '{window_name}'...")
+            win32gui.PostMessage(handle, win32con.WM_CLOSE, 0, 0)
+            # Alternativa mais agressiva:
+            win32gui.PostMessage(handle, win32con.WM_DESTROY, 0, 0)
+            return None
         else:
-            win32gui.ShowWindow(hwnd, win32con.SW_SHOW)
-            win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
+            # Se a janela estiver minimizada, restaura
+            if win32gui.IsIconic(handle):
+                win32gui.ShowWindow(handle, win32con.SW_RESTORE)
+                win32gui.ShowWindow(handle, win32con.SW_MAXIMIZE)
+            else:
+                win32gui.ShowWindow(handle, win32con.SW_SHOW)
+                win32gui.ShowWindow(handle, win32con.SW_MAXIMIZE)
 
-        # Ativa a janela, trazendo-a para o primeiro plano
-        win32gui.SetForegroundWindow(hwnd)
-        # Espera um momento para a janela ser restaurada completamente
-        time.sleep(2)
-        return hwnd
+            # Ativa a janela, trazendo-a para o primeiro plano
+            win32gui.SetForegroundWindow(handle)
+            # Espera um momento para a janela ser restaurada completamente
+            time.sleep(2)
+
+        return handle
     except IndexError:
         print(f"Janela com título '{window_name}' não encontrada.")
         return None
@@ -939,7 +967,7 @@ if __name__ == '__main__':
 
     # main_tools(['exportar_json'], show=False)
 
-    lista = [745]
+    lista = []  # [745]
     for item in lista:
         exportar_json(item=item, offset=[0, 0, 1, 1])
 
